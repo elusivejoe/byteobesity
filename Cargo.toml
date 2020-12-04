@@ -5,3 +5,7 @@ authors = ["Dmitrii Sazonov <rainyday170120@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+rand = "0.7.3"
+
+[profile.release]
+opt-level = 3
