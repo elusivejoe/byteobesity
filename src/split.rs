@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-#[derive(Debug)]
 pub struct Piece {
     shared_data: Arc<String>,
     slice_begin: usize,
