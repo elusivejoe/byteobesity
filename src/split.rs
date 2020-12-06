@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+#[derive(Debug)]
 pub struct Piece {
     shared_data: Arc<String>,
     slice_begin: usize,
@@ -52,4 +53,23 @@ pub fn split(data: &Arc<String>, pieces: usize) -> Vec<Piece> {
     }
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::split::split;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_split() {
+        let test_buf = "1 2 3 65535 0 10 30 ";
+        let expected = split(&Arc::new(String::from(test_buf)), 4);
+
+        assert_eq!(expected.len(), 4);
+
+        assert_eq!(expected[0].slice(), "1 2 3 ");
+        assert_eq!(expected[1].slice(), "65535 ");
+        assert_eq!(expected[2].slice(), "0 10 ");
+        assert_eq!(expected[3].slice(), "30 ");
+    }
 }
