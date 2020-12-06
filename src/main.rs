@@ -1,6 +1,7 @@
-use crate::split::Piece;
 use rand::Rng;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::thread::JoinHandle;
 use std::time::Instant;
 
 mod split;
@@ -13,7 +14,7 @@ fn imitate_cpu_load() {
 
 fn calc_sum(buffer: &str) -> u128 {
     buffer
-        .split(" ")
+        .split_whitespace()
         .fold(0u128, |acc, str| match str.parse::<u16>() {
             Ok(val) => {
                 imitate_cpu_load();
@@ -23,10 +24,30 @@ fn calc_sum(buffer: &str) -> u128 {
         })
 }
 
-fn calc_sum_mt(buffer: &Arc<String>, _threads: u8) -> u128 {
-    let piece = Piece::new(buffer, 0, buffer.len());
+fn calc_sum_mt(buffer: &Arc<String>, threads: usize) -> u128 {
+    let pieces = split::split(buffer, threads);
+    let result = Arc::new(Mutex::new(0u128));
 
-    calc_sum(piece.slice()) + 1
+    let mut handles = Vec::<JoinHandle<_>>::new();
+
+    for piece in pieces {
+        let results_clone = Arc::clone(&result);
+
+        handles.push(thread::spawn(move || {
+            let res = calc_sum(piece.slice());
+            let mut shared_res = results_clone.lock().unwrap();
+
+            *shared_res += res
+        }));
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    let res = result.lock().unwrap();
+
+    *res
 }
 
 fn generate_dataset(size: i32) -> Arc<String> {
@@ -41,7 +62,7 @@ fn generate_dataset(size: i32) -> Arc<String> {
 }
 
 fn main() {
-    let dataset_size = 1024 * 1024;
+    let dataset_size = 1024 * 1024 * 400;
 
     println!("Generating test dataset...");
 
@@ -60,7 +81,7 @@ fn main() {
     }
 
     {
-        let threads = 4;
+        let threads = 8;
 
         println!("\nCalculating in {} threads...", threads);
         let start_time = Instant::now();
@@ -81,7 +102,7 @@ mod tests {
 
     #[test]
     fn test_calc_sum() {
-        let test_buf = "  1 2 3   65535 0 10  30   ";
+        let test_buf = "1 2 3 65535 0 10 30 ";
 
         assert_eq!(65581, calc_sum(test_buf));
         assert_eq!(65581, calc_sum_mt(&Arc::new(String::from(test_buf)), 4));
